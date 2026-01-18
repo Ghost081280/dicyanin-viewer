@@ -2,7 +2,7 @@
 
 A web-based camera filter that replicates the optical properties of Dr. Walter Kilner's dicyanin screens from 1911. See the world through the same lens that sparked over a century of paranormal speculation.
 
-**[Try it live](https://ghost081280.github.io/dicyanin-viewer)**
+**[Try it live](https://ghost081280.github.io/dicyaninviewer/)**
 
 ---
 
