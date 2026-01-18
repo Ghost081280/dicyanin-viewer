@@ -257,7 +257,5 @@ MIT License — see [LICENSE](LICENSE) for details.
 </p>
 
 <p align="center">
-  <a href="https://ghost081280.github.io/dicyanin-viewer/">
-    <img src="https://img.shields.io/badge/👁️_SEE_WHAT_OTHERS_CAN'T-4a3aff?style=for-the-badge" alt="See What Others Can't"/>
-  </a>
+  <img src="https://img.shields.io/badge/👁️_SEE_WHAT_OTHERS_CAN'T-4a3aff?style=for-the-badge" alt="See What Others Can't"/>
 </p>
