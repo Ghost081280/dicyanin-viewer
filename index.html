@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0a0a1a">
+    
+    <!-- Social Share Meta Tags -->
+    <meta property="og:title" content="Dicyanin Viewer - See the Unseen">
+    <meta property="og:description" content="Experience the legendary Kilner screen effect. View the world through authentic dicyanin-style filters.">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    
+    <title>Dicyanin Viewer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Loading Screen -->
+        <div id="loading-screen">
+            <div class="loader-content">
+                <div class="eye-icon">👁</div>
+                <h1>Dicyanin Viewer</h1>
+                <p>Initializing camera...</p>
+            </div>
+        </div>
+
+        <!-- Main Viewer -->
+        <div id="viewer" class="hidden">
+            <video id="video" autoplay playsinline muted></video>
+            <canvas id="canvas"></canvas>
+            
+            <!-- Top Info Bar -->
+            <div id="top-bar">
+                <div class="info-badge">
+                    <span class="badge-dot"></span>
+                    DICYANIN FILTER ACTIVE
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div id="controls">
+                <div class="control-group">
+                    <label for="intensity">Filter Intensity</label>
+                    <input type="range" id="intensity" min="0" max="100" value="75">
+                    <span id="intensity-value">75%</span>
+                </div>
+                
+                <div class="button-row">
+                    <button id="flip-btn" class="control-btn">
+                        <span class="btn-icon">🔄</span>
+                        Flip Camera
+                    </button>
+                    <button id="capture-btn" class="control-btn primary">
+                        <span class="btn-icon">📸</span>
+                        Capture
+                    </button>
+                    <button id="share-btn" class="control-btn">
+                        <span class="btn-icon">📤</span>
+                        Share
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filter Off Indicator -->
+            <div id="filter-off-indicator" class="hidden">
+                <span>FILTER OFF - Tap to enable</span>
+            </div>
+        </div>
+
+        <!-- Capture Preview Modal -->
+        <div id="capture-modal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Captured Image</h2>
+                    <button id="close-modal" class="close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <canvas id="capture-canvas"></canvas>
+                    <div class="watermark-preview">
+                        <small>Captured with Dicyanin Viewer</small>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button id="download-btn" class="action-btn">
+                        <span>💾</span> Save Image
+                    </button>
+                    <button id="share-capture-btn" class="action-btn primary">
+                        <span>📤</span> Share
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Error Screen -->
+        <div id="error-screen" class="hidden">
+            <div class="error-content">
+                <div class="error-icon">📷</div>
+                <h2>Camera Access Required</h2>
+                <p>Please allow camera access to use Dicyanin Viewer</p>
+                <button id="retry-btn" class="retry-btn">Try Again</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
