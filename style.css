@@ -322,24 +322,6 @@ html, body {
     height: 22px;
 }
 
-/* Filter Off Indicator */
-#filter-off-indicator {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(220, 38, 38, 0.95);
-    padding: 1rem 2rem;
-    border-radius: 1rem;
-    font-weight: 700;
-    font-size: 0.8rem;
-    letter-spacing: 0.05em;
-    z-index: 15;
-    cursor: pointer;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 4px 24px rgba(220, 38, 38, 0.4);
-}
-
 /* Modal */
 .modal {
     position: fixed;
