@@ -48,7 +48,7 @@ class DicyaninViewer {
         this.filterEnabled = true;
         
         // App URL for sharing
-        this.appUrl = window.location.href;
+        this.appUrl = 'https://ghost081280.github.io/dicyaninviewer/';
         
         // Bind methods
         this.processFrame = this.processFrame.bind(this);
@@ -342,7 +342,7 @@ class DicyaninViewer {
         ctx.font = `600 ${smallFontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
         ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
         ctx.textAlign = 'center';
-        ctx.fillText('dicyaninviewer.com', width / 2, height - bottomBarHeight / 2);
+        ctx.fillText('ghost081280.github.io/dicyaninviewer', width / 2, height - bottomBarHeight / 2);
     }
     
     closeModal() {
