@@ -124,7 +124,7 @@ filteredB = ((filteredB - 128) * 1.2) + 128;
 ## Usage
 
 ### Online
-Visit the live demo and allow camera access.
+Visit the live site and allow camera access.
 
 ### Self-Hosted
 1. Clone or download this repository
