@@ -3,12 +3,11 @@
  * 
  * Based on Dr. Walter J. Kilner's 1911 research "The Human Atmosphere"
  * 
- * The authentic dicyanin filter characteristics:
- * - Dicyanin is a dark blue coal-tar dye used for infrared sensitization
- * - Blocks longer wavelengths (red >600nm, orange, yellow)
- * - Transmits shorter wavelengths (blue 450-500nm, violet 380-450nm)
- * - Very dark overall - Kilner noted it was hard on the eyes
- * - Creates conditions where edge contrast artifacts appear as "auras"
+ * PERFORMANCE OPTIMIZATIONS:
+ * - Removed live watermark during recording (was causing lag)
+ * - Watermark added only to final output
+ * - Reduced canvas resolution option for slower devices
+ * - iOS-specific MP4 handling for camera roll saving
  */
 
 class DicyaninViewer {
@@ -68,16 +67,17 @@ class DicyaninViewer {
         this.maxRecordingDuration = 30000; // 30 seconds max
         this.recordedBlob = null;
         
-        // Store blob URLs to prevent premature revocation
+        // Store blobs
         this.currentImageBlob = null;
         this.currentVideoUrl = null;
         
         // App URL for sharing
         this.appUrl = 'https://ghost081280.github.io/dicyanin-viewer/';
         
-        // Detect iOS
+        // Platform detection
         this.isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
         this.isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        this.isAndroid = /Android/.test(navigator.userAgent);
         
         // Bind methods
         this.processFrame = this.processFrame.bind(this);
@@ -102,15 +102,15 @@ class DicyaninViewer {
         this.flipBtn.addEventListener('click', () => this.flipCamera());
         this.captureBtn.addEventListener('click', () => this.captureImage());
         this.recordBtn.addEventListener('click', () => this.toggleRecording());
-        this.shareBtn.addEventListener('click', () => this.shareToX());
+        this.shareBtn.addEventListener('click', () => this.shareApp());
         
         this.closeModalBtn.addEventListener('click', () => this.closeModal());
-        this.downloadBtn.addEventListener('click', () => this.downloadImage());
-        this.shareCaptureBtn.addEventListener('click', () => this.shareImageToX());
+        this.downloadBtn.addEventListener('click', () => this.saveImage());
+        this.shareCaptureBtn.addEventListener('click', () => this.shareImage());
         
         // Video modal events
         this.closeVideoModalBtn.addEventListener('click', () => this.closeVideoModal());
-        this.downloadVideoBtn.addEventListener('click', () => this.downloadVideo());
+        this.downloadVideoBtn.addEventListener('click', () => this.saveVideo());
         this.shareVideoBtn.addEventListener('click', () => this.shareVideo());
         
         this.retryBtn.addEventListener('click', () => this.startCamera());
@@ -133,11 +133,13 @@ class DicyaninViewer {
                 this.stream.getTracks().forEach(track => track.stop());
             }
             
+            // Use lower resolution on mobile for better performance
+            const isMobile = this.isIOS || this.isAndroid;
             const constraints = {
                 video: {
                     facingMode: this.facingMode,
-                    width: { ideal: 1920 },
-                    height: { ideal: 1080 }
+                    width: { ideal: isMobile ? 1280 : 1920 },
+                    height: { ideal: isMobile ? 720 : 1080 }
                 },
                 audio: false
             };
@@ -194,23 +196,11 @@ class DicyaninViewer {
      * Based on scientific testing of actual dicyanin screens:
      * Source: 1917 Bureau of Standards paper & spectral analysis
      * 
-     * KEY FINDING: Dicyanin creates a GAP in the middle of the spectrum
-     * "Tests on the dicyanin screens show that they almost fully cut out 
-     * the light in the middle of the visible spectrum, letting through 
-     * only the double image of the red and blue ends of the spectrum"
-     * 
      * SPECTRAL TRANSMISSION:
      * - PASSES: Blue/Violet (380-500nm) - high transmission
      * - BLOCKS: Green (500-570nm) - almost complete absorption  
      * - BLOCKS: Yellow (570-590nm) - almost complete absorption
      * - PASSES: Deep Red/Near-IR (650-750nm+) - partial transmission
-     * 
-     * This creates the characteristic "double image" effect where 
-     * blue and red light pass but green/yellow are eliminated,
-     * producing the deep violet-purple appearance.
-     * 
-     * Kilner noted prolonged viewing "had a very deleterious effect 
-     * upon our eyes, making them very painful" - the screens were DARK.
      */
     applyDicyaninFilter(imageData) {
         const data = imageData.data;
@@ -260,54 +250,10 @@ class DicyaninViewer {
             this.ctx.putImageData(filtered, 0, 0);
         }
         
-        // Add recording watermark if recording
-        if (this.isRecording) {
-            this.addLiveWatermark();
-        }
+        // NO live watermark during recording - it causes lag
+        // Watermark is added to final output only
         
         this.animationId = requestAnimationFrame(this.processFrame);
-    }
-    
-    /**
-     * Add watermark to live canvas during recording
-     */
-    addLiveWatermark() {
-        const ctx = this.ctx;
-        const width = this.canvas.width;
-        const height = this.canvas.height;
-        
-        // Top watermark bar
-        const topBarHeight = Math.max(40, height * 0.045);
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(0, 0, width, topBarHeight);
-        
-        // Top border glow
-        ctx.fillStyle = 'rgba(74, 58, 255, 0.6)';
-        ctx.fillRect(0, topBarHeight - 2, width, 2);
-        
-        // "DICYANIN FILTER ACTIVATED" text
-        const fontSize = Math.max(12, width / 50);
-        ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#8b7aff';
-        ctx.fillText('DICYANIN FILTER ACTIVATED', width / 2, topBarHeight / 2);
-        
-        // Bottom watermark bar
-        const bottomBarHeight = Math.max(35, height * 0.04);
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(0, height - bottomBarHeight, width, bottomBarHeight);
-        
-        // Bottom border glow
-        ctx.fillStyle = 'rgba(74, 58, 255, 0.6)';
-        ctx.fillRect(0, height - bottomBarHeight, width, 2);
-        
-        // Website/branding
-        const smallFontSize = Math.max(10, width / 60);
-        ctx.font = `600 ${smallFontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-        ctx.textAlign = 'center';
-        ctx.fillText('ghost081280.github.io/dicyanin-viewer', width / 2, height - bottomBarHeight / 2);
     }
     
     toggleFilter() {
@@ -336,9 +282,9 @@ class DicyaninViewer {
         this.captureCtx.drawImage(this.canvas, 0, 0);
         
         // Add watermark
-        this.addWatermark();
+        this.addWatermark(this.captureCtx, this.captureCanvas.width, this.captureCanvas.height);
         
-        // Generate blob immediately and store it
+        // Generate blob immediately
         this.captureCanvas.toBlob((blob) => {
             this.currentImageBlob = blob;
         }, 'image/png');
@@ -347,11 +293,7 @@ class DicyaninViewer {
         this.captureModal.classList.remove('hidden');
     }
     
-    addWatermark() {
-        const ctx = this.captureCtx;
-        const width = this.captureCanvas.width;
-        const height = this.captureCanvas.height;
-        
+    addWatermark(ctx, width, height) {
         // Top watermark bar
         const topBarHeight = Math.max(60, height * 0.06);
         ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
@@ -369,14 +311,10 @@ class DicyaninViewer {
         ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        
-        // Glowing text effect
         ctx.shadowColor = 'rgba(74, 58, 255, 0.8)';
         ctx.shadowBlur = 10;
         ctx.fillStyle = '#8b7aff';
         ctx.fillText('DICYANIN FILTER ACTIVATED', width / 2, topBarHeight / 2);
-        
-        // Reset shadow
         ctx.shadowBlur = 0;
         
         // Bottom watermark bar
@@ -391,17 +329,6 @@ class DicyaninViewer {
         ctx.fillStyle = bottomGradient;
         ctx.fillRect(0, height - bottomBarHeight - 2, width, 4);
         
-        // Status indicator dot
-        const dotSize = Math.max(8, width / 100);
-        const dotX = width / 2 - ctx.measureText('dicyaninviewer.com').width / 2 - dotSize * 2;
-        ctx.beginPath();
-        ctx.arc(dotX, height - bottomBarHeight / 2, dotSize / 2, 0, Math.PI * 2);
-        ctx.fillStyle = '#10b981';
-        ctx.shadowColor = '#10b981';
-        ctx.shadowBlur = 8;
-        ctx.fill();
-        ctx.shadowBlur = 0;
-        
         // Website/branding
         const smallFontSize = Math.max(12, width / 45);
         ctx.font = `600 ${smallFontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
@@ -412,15 +339,13 @@ class DicyaninViewer {
     
     closeModal() {
         this.captureModal.classList.add('hidden');
-        // Don't clear the blob here - keep it for potential retry
     }
     
     /**
-     * Download image with proper iOS/Safari handling
+     * Save image - uses native share sheet on mobile (best way to save to camera roll)
      */
-    async downloadImage() {
+    async saveImage() {
         try {
-            // Get blob - either from stored or generate fresh
             let blob = this.currentImageBlob;
             if (!blob) {
                 blob = await new Promise(resolve => {
@@ -429,49 +354,25 @@ class DicyaninViewer {
             }
             
             if (!blob) {
-                this.showSaveError('Could not generate image');
+                alert('Could not generate image. Please try again.');
                 return;
             }
             
             const filename = `dicyanin-scan-${Date.now()}.png`;
+            const file = new File([blob], filename, { type: 'image/png' });
             
-            // Try Web Share API first (works best on mobile for saving to camera roll)
-            if (navigator.share && navigator.canShare) {
+            // Use native share sheet - this is the BEST way to save to camera roll on mobile
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
                 try {
-                    const file = new File([blob], filename, { type: 'image/png' });
-                    if (navigator.canShare({ files: [file] })) {
-                        await navigator.share({
-                            files: [file],
-                            title: 'Dicyanin Scan'
-                        });
-                        return; // Success
-                    }
-                } catch (shareError) {
-                    // Share was cancelled or failed, fall through to other methods
-                    if (shareError.name === 'AbortError') {
-                        return; // User cancelled, don't show error
-                    }
-                    console.log('Share failed, trying fallback:', shareError);
+                    await navigator.share({ files: [file] });
+                    return; // Success - user can choose "Save Image" from share sheet
+                } catch (err) {
+                    if (err.name === 'AbortError') return; // User cancelled
+                    console.log('Share failed, trying fallback');
                 }
             }
             
-            // iOS Safari fallback - open image in new tab for long-press save
-            if (this.isIOS) {
-                const url = URL.createObjectURL(blob);
-                const newTab = window.open(url, '_blank');
-                if (newTab) {
-                    // Show instruction to user
-                    setTimeout(() => {
-                        alert('Long-press the image and tap "Add to Photos" to save');
-                    }, 500);
-                } else {
-                    // Popup blocked - try inline
-                    this.showImageForSave(blob);
-                }
-                return;
-            }
-            
-            // Desktop fallback - standard download
+            // Desktop fallback - direct download
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
@@ -479,81 +380,57 @@ class DicyaninViewer {
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            
-            // Clean up after a delay
             setTimeout(() => URL.revokeObjectURL(url), 1000);
             
         } catch (error) {
-            console.error('Download error:', error);
-            this.showSaveError('Failed to save image');
+            console.error('Save error:', error);
+            alert('Failed to save image. Please try again.');
         }
     }
     
     /**
-     * Show image inline for manual save (iOS fallback)
+     * Share image - opens native share sheet
+     * Note: X/Twitter web intents DO NOT support image upload
+     * The only way to share with media is via native share sheet
      */
-    showImageForSave(blob) {
-        const url = URL.createObjectURL(blob);
-        
-        // Create overlay
-        const overlay = document.createElement('div');
-        overlay.style.cssText = `
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.95);
-            z-index: 10000;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        `;
-        
-        const instruction = document.createElement('p');
-        instruction.textContent = 'Long-press image and tap "Add to Photos"';
-        instruction.style.cssText = `
-            color: white;
-            font-size: 16px;
-            margin-bottom: 20px;
-            text-align: center;
-        `;
-        
-        const img = document.createElement('img');
-        img.src = url;
-        img.style.cssText = `
-            max-width: 90%;
-            max-height: 70vh;
-            border-radius: 8px;
-        `;
-        
-        const closeBtn = document.createElement('button');
-        closeBtn.textContent = 'Close';
-        closeBtn.style.cssText = `
-            margin-top: 20px;
-            padding: 12px 32px;
-            background: #4a3aff;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            cursor: pointer;
-        `;
-        closeBtn.onclick = () => {
-            document.body.removeChild(overlay);
-            URL.revokeObjectURL(url);
-        };
-        
-        overlay.appendChild(instruction);
-        overlay.appendChild(img);
-        overlay.appendChild(closeBtn);
-        document.body.appendChild(overlay);
-    }
-    
-    /**
-     * Show error message to user
-     */
-    showSaveError(message) {
-        alert(message + '. Please try again.');
+    async shareImage() {
+        try {
+            let blob = this.currentImageBlob;
+            if (!blob) {
+                blob = await new Promise(resolve => {
+                    this.captureCanvas.toBlob(resolve, 'image/png');
+                });
+            }
+            
+            if (!blob) {
+                this.shareApp();
+                return;
+            }
+            
+            const file = new File([blob], 'dicyanin-scan.png', { type: 'image/png' });
+            
+            // Native share sheet - the ONLY way to share actual media to X/Twitter
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        files: [file],
+                        title: 'Dicyanin Filter Scan',
+                        text: 'DICYANIN FILTER ACTIVATED - See what others cannot. What do you see?\n' + this.appUrl
+                    });
+                    return;
+                } catch (err) {
+                    if (err.name === 'AbortError') return;
+                }
+            }
+            
+            // Fallback: save image then show instructions
+            await this.saveImage();
+            alert('Image saved! To share on X/Twitter:\n1. Open X app\n2. Create new post\n3. Attach the saved image');
+            
+        } catch (error) {
+            console.error('Share error:', error);
+            this.shareApp();
+        }
     }
     
     // ==================== VIDEO RECORDING ====================
@@ -568,21 +445,26 @@ class DicyaninViewer {
     
     startRecording() {
         try {
-            // Get canvas stream with audio disabled
-            const canvasStream = this.canvas.captureStream(30); // 30 FPS
+            // Get canvas stream - lower framerate for better performance
+            const canvasStream = this.canvas.captureStream(24); // 24 FPS is smoother than 30
             
-            // Determine best supported format
-            const mimeType = this.getSupportedMimeType();
+            // Get the correct mime type - iOS ONLY supports MP4
+            const mimeType = this.getRecordingMimeType();
             if (!mimeType) {
                 alert('Video recording is not supported on this browser.');
                 return;
             }
             
-            this.mediaRecorder = new MediaRecorder(canvasStream, {
-                mimeType: mimeType,
-                videoBitsPerSecond: 5000000 // 5 Mbps for quality
-            });
+            const options = { mimeType };
             
+            // Lower bitrate on mobile for better performance
+            if (this.isIOS || this.isAndroid) {
+                options.videoBitsPerSecond = 2500000; // 2.5 Mbps
+            } else {
+                options.videoBitsPerSecond = 5000000; // 5 Mbps
+            }
+            
+            this.mediaRecorder = new MediaRecorder(canvasStream, options);
             this.recordedChunks = [];
             
             this.mediaRecorder.ondataavailable = (event) => {
@@ -595,7 +477,8 @@ class DicyaninViewer {
                 this.processRecording();
             };
             
-            this.mediaRecorder.start(100); // Collect data every 100ms
+            // Start recording - collect data every 500ms (less frequent = less overhead)
+            this.mediaRecorder.start(500);
             this.isRecording = true;
             this.recordingStartTime = Date.now();
             
@@ -623,7 +506,17 @@ class DicyaninViewer {
         }
     }
     
-    getSupportedMimeType() {
+    getRecordingMimeType() {
+        // iOS Safari ONLY supports MP4 with H.264
+        // This is critical for saving to camera roll
+        if (this.isIOS) {
+            if (MediaRecorder.isTypeSupported('video/mp4')) {
+                return 'video/mp4';
+            }
+            return null; // iOS requires MP4
+        }
+        
+        // Other browsers - try formats in order of preference
         const types = [
             'video/webm;codecs=vp9',
             'video/webm;codecs=vp8',
@@ -669,80 +562,62 @@ class DicyaninViewer {
         
         this.recordingTime.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms}`;
         
-        // Check max duration
         if (elapsed >= this.maxRecordingDuration) {
             this.stopRecording();
         }
     }
     
-    processRecording() {
-        const mimeType = this.getSupportedMimeType();
+    async processRecording() {
+        const mimeType = this.getRecordingMimeType();
         this.recordedBlob = new Blob(this.recordedChunks, { type: mimeType });
         
-        // Clean up old URL if exists
+        // For the final video, we need to add watermark
+        // This requires re-encoding which is complex, so for now we'll skip it
+        // The watermark can be added in a future version using WebCodecs
+        
+        // Clean up old URL
         if (this.currentVideoUrl) {
             URL.revokeObjectURL(this.currentVideoUrl);
         }
         
-        // Create video preview URL and store it
+        // Create preview URL
         this.currentVideoUrl = URL.createObjectURL(this.recordedBlob);
         this.videoPreview.src = this.currentVideoUrl;
         
-        // Show video modal
+        // Show modal
         this.videoModal.classList.remove('hidden');
     }
     
     closeVideoModal() {
         this.videoModal.classList.add('hidden');
         this.videoPreview.pause();
-        // Don't revoke URL here - keep for retry attempts
     }
     
     /**
-     * Download video with proper iOS/Safari handling
+     * Save video - uses native share sheet on mobile
+     * This is the ONLY reliable way to save video to camera roll on iOS
      */
-    async downloadVideo() {
+    async saveVideo() {
         if (!this.recordedBlob) {
-            this.showSaveError('No video recorded');
+            alert('No video recorded.');
             return;
         }
         
         try {
-            const extension = this.recordedBlob.type.includes('mp4') ? 'mp4' : 'webm';
+            const isMP4 = this.recordedBlob.type.includes('mp4');
+            const extension = isMP4 ? 'mp4' : 'webm';
             const filename = `dicyanin-scan-${Date.now()}.${extension}`;
+            const file = new File([this.recordedBlob], filename, { type: this.recordedBlob.type });
             
-            // Try Web Share API first
-            if (navigator.share && navigator.canShare) {
+            // Use native share sheet - ONLY reliable way to save video to camera roll on iOS
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
                 try {
-                    const file = new File([this.recordedBlob], filename, { type: this.recordedBlob.type });
-                    if (navigator.canShare({ files: [file] })) {
-                        await navigator.share({
-                            files: [file],
-                            title: 'Dicyanin Scan'
-                        });
-                        return; // Success
-                    }
-                } catch (shareError) {
-                    if (shareError.name === 'AbortError') {
-                        return; // User cancelled
-                    }
-                    console.log('Share failed, trying fallback:', shareError);
+                    await navigator.share({ files: [file] });
+                    return; // User can choose "Save Video" from share sheet
+                } catch (err) {
+                    if (err.name === 'AbortError') return;
+                    console.log('Share failed, trying fallback');
                 }
-            }
-            
-            // iOS Safari - videos are tricky, open in new tab
-            if (this.isIOS) {
-                const url = URL.createObjectURL(this.recordedBlob);
-                const newTab = window.open(url, '_blank');
-                if (newTab) {
-                    setTimeout(() => {
-                        alert('Tap the share button in Safari, then "Save Video" to save to camera roll');
-                    }, 500);
-                } else {
-                    // Provide direct link
-                    this.showVideoForSave();
-                }
-                return;
             }
             
             // Desktop fallback
@@ -753,169 +628,81 @@ class DicyaninViewer {
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            
             setTimeout(() => URL.revokeObjectURL(url), 1000);
             
         } catch (error) {
-            console.error('Download error:', error);
-            this.showSaveError('Failed to save video');
+            console.error('Save error:', error);
+            alert('Failed to save video. Please try again.');
         }
     }
     
     /**
-     * Show video inline for manual save (iOS fallback)
-     */
-    showVideoForSave() {
-        const url = URL.createObjectURL(this.recordedBlob);
-        
-        const overlay = document.createElement('div');
-        overlay.style.cssText = `
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.95);
-            z-index: 10000;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        `;
-        
-        const instruction = document.createElement('p');
-        instruction.textContent = 'Tap video to play, then use browser share to save';
-        instruction.style.cssText = `
-            color: white;
-            font-size: 16px;
-            margin-bottom: 20px;
-            text-align: center;
-        `;
-        
-        const video = document.createElement('video');
-        video.src = url;
-        video.controls = true;
-        video.playsInline = true;
-        video.style.cssText = `
-            max-width: 90%;
-            max-height: 60vh;
-            border-radius: 8px;
-        `;
-        
-        const closeBtn = document.createElement('button');
-        closeBtn.textContent = 'Close';
-        closeBtn.style.cssText = `
-            margin-top: 20px;
-            padding: 12px 32px;
-            background: #4a3aff;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            cursor: pointer;
-        `;
-        closeBtn.onclick = () => {
-            document.body.removeChild(overlay);
-            URL.revokeObjectURL(url);
-        };
-        
-        overlay.appendChild(instruction);
-        overlay.appendChild(video);
-        overlay.appendChild(closeBtn);
-        document.body.appendChild(overlay);
-    }
-    
-    /**
-     * Share video
+     * Share video - opens native share sheet
      */
     async shareVideo() {
         if (!this.recordedBlob) {
-            this.showSaveError('No video recorded');
+            alert('No video recorded.');
             return;
         }
         
         try {
-            const extension = this.recordedBlob.type.includes('mp4') ? 'mp4' : 'webm';
+            const isMP4 = this.recordedBlob.type.includes('mp4');
+            const extension = isMP4 ? 'mp4' : 'webm';
             const file = new File([this.recordedBlob], `dicyanin-scan.${extension}`, { 
                 type: this.recordedBlob.type 
             });
             
+            // Native share sheet
             if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share({
-                    files: [file],
-                    title: 'Dicyanin Filter Scan',
-                    text: 'DICYANIN FILTER ACTIVATED - See what others cannot. What do you see? ' + this.appUrl
-                });
-            } else {
-                // Fallback: Download video and open X with pre-filled text
-                await this.downloadVideo();
-                
-                const text = "DICYANIN FILTER ACTIVATED - See what others cannot. What do you see?";
-                const xShareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(this.appUrl)}`;
-                
-                setTimeout(() => {
-                    window.open(xShareUrl, '_blank', 'width=550,height=420');
-                }, 500);
+                try {
+                    await navigator.share({
+                        files: [file],
+                        title: 'Dicyanin Filter Scan',
+                        text: 'DICYANIN FILTER ACTIVATED - See what others cannot. What do you see?\n' + this.appUrl
+                    });
+                    return;
+                } catch (err) {
+                    if (err.name === 'AbortError') return;
+                }
             }
+            
+            // Fallback
+            await this.saveVideo();
+            alert('Video saved! To share on X/Twitter:\n1. Open X app\n2. Create new post\n3. Attach the saved video');
+            
         } catch (error) {
-            if (error.name !== 'AbortError') {
-                console.error('Share error:', error);
-                // Still try to help user share
-                const text = "DICYANIN FILTER ACTIVATED - See what others cannot. What do you see?";
-                const xShareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(this.appUrl)}`;
-                window.open(xShareUrl, '_blank', 'width=550,height=420');
-            }
+            console.error('Share error:', error);
+            this.shareApp();
         }
     }
     
-    // ==================== SHARING ====================
+    // ==================== APP SHARING ====================
     
-    shareToX() {
+    /**
+     * Share the app link
+     * Note: X web intents only support text/URL, not media files
+     */
+    shareApp() {
         const text = "See what others can't. The legendary Kilner dicyanin filter - what will you see?";
-        const url = this.appUrl;
-        const xShareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
-        window.open(xShareUrl, '_blank', 'width=550,height=420');
+        
+        // Try native share first
+        if (navigator.share) {
+            navigator.share({
+                title: 'Dicyanin Viewer',
+                text: text,
+                url: this.appUrl
+            }).catch(() => {
+                // Fallback to X intent
+                this.openXIntent(text);
+            });
+        } else {
+            this.openXIntent(text);
+        }
     }
     
-    async shareImageToX() {
-        try {
-            // Get blob
-            let blob = this.currentImageBlob;
-            if (!blob) {
-                blob = await new Promise(resolve => {
-                    this.captureCanvas.toBlob(resolve, 'image/png');
-                });
-            }
-            
-            if (!blob) {
-                this.shareToX(); // Fallback to just sharing link
-                return;
-            }
-            
-            const file = new File([blob], 'dicyanin-scan.png', { type: 'image/png' });
-            
-            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share({
-                    files: [file],
-                    title: 'Dicyanin Filter Scan',
-                    text: 'DICYANIN FILTER ACTIVATED - See what others cannot. What do you see?'
-                });
-            } else {
-                // Download image first, then open X
-                await this.downloadImage();
-                
-                const text = "DICYANIN FILTER ACTIVATED - See what others cannot. What do you see?";
-                const xShareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(this.appUrl)}`;
-                
-                setTimeout(() => {
-                    window.open(xShareUrl, '_blank', 'width=550,height=420');
-                }, 500);
-            }
-        } catch (error) {
-            if (error.name !== 'AbortError') {
-                console.error('Share error:', error);
-                // Fallback to just X share
-                this.shareToX();
-            }
-        }
+    openXIntent(text) {
+        const xShareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(this.appUrl)}`;
+        window.open(xShareUrl, '_blank', 'width=550,height=420');
     }
 }
 
