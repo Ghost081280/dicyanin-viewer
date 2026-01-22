@@ -79,12 +79,47 @@ class DicyaninViewer {
         this.isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
         this.isAndroid = /Android/.test(navigator.userAgent);
         
+        // Toast element
+        this.toast = null;
+        this.createToast();
+        
         // Bind methods
         this.processFrame = this.processFrame.bind(this);
         this.handleResize = this.handleResize.bind(this);
         
         // Initialize
         this.init();
+    }
+    
+    createToast() {
+        this.toast = document.createElement('div');
+        this.toast.className = 'toast';
+        this.toast.innerHTML = `
+            <div class="toast-icon">✓</div>
+            <div class="toast-message"></div>
+        `;
+        document.body.appendChild(this.toast);
+    }
+    
+    showToast(message, type = 'success') {
+        const icon = this.toast.querySelector('.toast-icon');
+        const msg = this.toast.querySelector('.toast-message');
+        
+        msg.textContent = message;
+        
+        if (type === 'success') {
+            icon.textContent = '✓';
+            icon.style.background = 'var(--success, #10b981)';
+        } else if (type === 'info') {
+            icon.textContent = 'ℹ';
+            icon.style.background = 'var(--primary, #4a3aff)';
+        }
+        
+        this.toast.classList.add('show');
+        
+        setTimeout(() => {
+            this.toast.classList.remove('show');
+        }, 3000);
     }
     
     async init() {
@@ -365,7 +400,9 @@ class DicyaninViewer {
             if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
                 try {
                     await navigator.share({ files: [file] });
-                    return; // Success - user can choose "Save Image" from share sheet
+                    this.closeModal();
+                    this.showToast('Image saved to camera roll!');
+                    return;
                 } catch (err) {
                     if (err.name === 'AbortError') return; // User cancelled
                     console.log('Share failed, trying fallback');
@@ -381,6 +418,9 @@ class DicyaninViewer {
             link.click();
             document.body.removeChild(link);
             setTimeout(() => URL.revokeObjectURL(url), 1000);
+            
+            this.closeModal();
+            this.showToast('Image downloaded!');
             
         } catch (error) {
             console.error('Save error:', error);
@@ -417,6 +457,8 @@ class DicyaninViewer {
                         title: 'Dicyanin Filter Scan',
                         text: 'DICYANIN FILTER ACTIVATED - See what others cannot. What do you see?\n' + this.appUrl
                     });
+                    this.closeModal();
+                    this.showToast('Image shared!');
                     return;
                 } catch (err) {
                     if (err.name === 'AbortError') return;
@@ -425,7 +467,6 @@ class DicyaninViewer {
             
             // Fallback: save image then show instructions
             await this.saveImage();
-            alert('Image saved! To share on X/Twitter:\n1. Open X app\n2. Create new post\n3. Attach the saved image');
             
         } catch (error) {
             console.error('Share error:', error);
@@ -457,11 +498,14 @@ class DicyaninViewer {
             
             const options = { mimeType };
             
-            // Lower bitrate on mobile for better performance
-            if (this.isIOS || this.isAndroid) {
-                options.videoBitsPerSecond = 2500000; // 2.5 Mbps
+            // Optimize bitrate for smoother playback
+            // Lower bitrate = smaller file = smoother playback on mobile
+            if (this.isIOS) {
+                options.videoBitsPerSecond = 1500000; // 1.5 Mbps - optimized for iOS playback
+            } else if (this.isAndroid) {
+                options.videoBitsPerSecond = 2000000; // 2 Mbps
             } else {
-                options.videoBitsPerSecond = 5000000; // 5 Mbps
+                options.videoBitsPerSecond = 4000000; // 4 Mbps for desktop
             }
             
             this.mediaRecorder = new MediaRecorder(canvasStream, options);
@@ -613,7 +657,9 @@ class DicyaninViewer {
             if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
                 try {
                     await navigator.share({ files: [file] });
-                    return; // User can choose "Save Video" from share sheet
+                    this.closeVideoModal();
+                    this.showToast('Video saved to camera roll!');
+                    return;
                 } catch (err) {
                     if (err.name === 'AbortError') return;
                     console.log('Share failed, trying fallback');
@@ -629,6 +675,9 @@ class DicyaninViewer {
             link.click();
             document.body.removeChild(link);
             setTimeout(() => URL.revokeObjectURL(url), 1000);
+            
+            this.closeVideoModal();
+            this.showToast('Video downloaded!');
             
         } catch (error) {
             console.error('Save error:', error);
@@ -660,6 +709,8 @@ class DicyaninViewer {
                         title: 'Dicyanin Filter Scan',
                         text: 'DICYANIN FILTER ACTIVATED - See what others cannot. What do you see?\n' + this.appUrl
                     });
+                    this.closeVideoModal();
+                    this.showToast('Video shared!');
                     return;
                 } catch (err) {
                     if (err.name === 'AbortError') return;
@@ -668,7 +719,6 @@ class DicyaninViewer {
             
             // Fallback
             await this.saveVideo();
-            alert('Video saved! To share on X/Twitter:\n1. Open X app\n2. Create new post\n3. Attach the saved video');
             
         } catch (error) {
             console.error('Share error:', error);
